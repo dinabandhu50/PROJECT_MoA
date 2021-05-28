@@ -13,6 +13,7 @@
     - optuna
 
 ## Recreate the project
-- install anaconda in system
-- make sure you don't have conda env with name moa previously
-- run env_setup.sh for environment setup
+- You should have anaconda installed
+- You should not have conda environment with name 'moa'
+- Run setup.sh
+    - this will setup the conda environment as well as download the data files.
