@@ -1,3 +1,4 @@
+import optuna
 import config
 import torch
 import pandas as pd
@@ -8,7 +9,7 @@ DEVICE = "cuda:0"
 # DEVICE = "cpu"
 EPOCHS = 10
 
-def run_training(fold, save_model=False):
+def run_training(fold,params, save_model=False):
     df = pd.read_csv(config.TRAIN_FEATURES)
 
     df = df.drop(["cp_type","cp_time","cp_dose"],axis=1)
@@ -43,12 +44,12 @@ def run_training(fold, save_model=False):
     model = utils.Model(
         nfeatures=xtrain.shape[1], 
         ntargets=ytrain.shape[1], 
-        nlayers=2, 
-        hidden_size=128, 
-        dropout=0.3
+        nlayers=params["num_layers"], 
+        hidden_size=params["hidden_size"],
+        dropout=params["dropout"]
     )
     model.to(DEVICE)
-    optimizer = torch.optim.Adam(model.parameters(),lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(),lr=params["learning_rate"])
     eng = utils.Engine(model, optimizer, device=DEVICE)
 
     best_loss = np.inf
@@ -63,12 +64,41 @@ def run_training(fold, save_model=False):
         if valid_loss < best_loss:
             best_loss = valid_loss
             if save_model:
-                torch.save(model.state_dict(),f"model_{fold}.bin")
+                torch.save(model.state_dict(),os.path.join(config.ROOT_DIR,"models","model_{fold}.bin"))
         else:
             early_stopping_counter += 1 
         
         if early_stopping_counter > early_stopping_iter:
             break
+    return best_loss
 
+def objective(trial):
+    params = {
+        "num_layers" : trial.suggest_int("num_layers",1,7),
+        "hidden_size": trial.suggest_int("hidden_size",16,2048),
+        "dropout": trial.suggest_uniform("dropout",0.1,0.7),
+        "learning_rate": trial.suggest_loguniform("learning_rate",1e-6,1e-3)
+    }
+    all_losses = []
+    for f_ in range(5):
+        temp_loss = run_training(f_,params, save_model=False)
+        all_losses.append(temp_loss)
+    
+    return np.mean(all_losses)
+    
 if __name__ == '__main__':
-    run_training(fold=0)
+    # run_training(fold=0)
+    study = optuna.create_study(direction="minimize")
+    study.optimize(objective, n_trials=20)
+
+    print("best trials:")
+    trial_ = study.best_trial
+
+    print(trial_.values) 
+    print(trial_.params) 
+
+    scores = 0.0
+    for j in range(5):
+        scr = run_training(j,trial_.params, save_model=True)
+        scores += scr
+    print(scores/5)

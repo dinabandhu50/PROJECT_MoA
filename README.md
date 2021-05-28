@@ -1,6 +1,9 @@
 # Mechanisms of Action (MoA) Prediction
 
-## The Dataset can be found here
-- https://www.kaggle.com/c/lish-moa/data
+## Data config
+- Create folders input/raw and input/processed in the root directory
+- Download the data from https://www.kaggle.com/c/lish-moa/data and store the unziped files in the input/raw 
 
-## How to use the project
+## Project requirement
+- Need to have anaconda
+- write the shell script for setup
